@@ -1,0 +1,194 @@
+<?php
+
+/**
+ * @file
+ * Contains anklagerupdate_rss.module.
+ */
+
+/**
+ * Implements hook_theme().
+ */
+function anklagerupdate_rss_theme($existing, $type, $theme, $path) {
+  return [
+    'anklagerupdate_messages_block' => [
+      'variables' => [
+        'messages' => [],
+        'publishers' => [],
+        'current_publisher' => NULL,
+        'pagination' => [],
+      ],
+      'template' => 'anklagerupdate-messages-block',
+    ],
+  ];
+}
+
+/**
+ * Implements hook_cron().
+ *
+ * When full Drupal cron runs (every hour), also import RSS feeds.
+ */
+function anklagerupdate_rss_cron() {
+  \Drupal::logger('anklagerupdate_rss')->info('Cron triggered RSS import');
+  anklagerupdate_rss_import();
+}
+
+/**
+ * Import RSS feeds from all publishers.
+ *
+ * Can be called independently from run-rss-import.php (every 10 min)
+ * or via hook_cron when full Drupal cron runs (every hour).
+ */
+function anklagerupdate_rss_import() {
+  // List of all publishers to fetch.
+  $publishers = [
+    '13563078' => 'Anklagemyndigheden',
+    '13563094' => 'Anklagemyndigheden ved Bornholms Politi',
+    '13563088' => 'Anklagemyndigheden ved Fyns Politi',
+    '13563097' => 'Anklagemyndigheden ved Færøernes Politi',
+    '13563096' => 'Anklagemyndigheden ved Grønlands Politi',
+    '13563092' => 'Anklagemyndigheden ved Københavns Politi',
+    '13563091' => 'Anklagemyndigheden ved Københavns Vestegns Politi',
+    '13563084' => 'Anklagemyndigheden ved Midt- og Vestjyllands Politi',
+    '13563089' => 'Anklagemyndigheden ved Midt- og Vestsjælland',
+    '13563095' => 'Anklagemyndigheden ved National enhed for Særlig Kriminalitet',
+    '13563083' => 'Anklagemyndigheden ved Nordjyllands Politi',
+    '13563093' => 'Anklagemyndigheden ved Nordsjællands Politi',
+    '13563087' => 'Anklagemyndigheden ved Syd- og Sønderjyllands Politi',
+    '13563090' => 'Anklagemyndigheden ved Sydsjællands og Lolland-Falsters Politi',
+    '13563086' => 'Anklagemyndigheden ved Sydøstjyllands Politi',
+    '13563085' => 'Anklagemyndigheden ved Østjyllands Politi',
+    '13563079' => 'Rigsadvokaten',
+    '13563082' => 'Statsadvokaten for Særlig Kriminalitet',
+    '13563080' => 'Statsadvokaten i København',
+    '13563081' => 'Statsadvokaten i Viborg',
+  ];
+
+  $total_new = 0;
+  $total_updated = 0;
+
+  foreach ($publishers as $publisher_id => $publisher_name) {
+    try {
+      $result = _anklagerupdate_rss_fetch_and_store($publisher_id, $publisher_name);
+      $total_new += $result['new'];
+      $total_updated += $result['updated'];
+    }
+    catch (\Exception $e) {
+      \Drupal::logger('anklagerupdate_rss')->error('Error fetching RSS for @publisher: @error', [
+        '@publisher' => $publisher_name,
+        '@error' => $e->getMessage(),
+      ]);
+    }
+  }
+
+  if ($total_new > 0 || $total_updated > 0) {
+    \Drupal::logger('anklagerupdate_rss')->info('RSS import completed: @new new, @updated updated', [
+      '@new' => $total_new,
+      '@updated' => $total_updated,
+    ]);
+    // Invalidate block cache so new messages appear immediately.
+    \Drupal\Core\Cache\Cache::invalidateTags(['anklagerupdate_messages']);
+  }
+  \Drupal::logger('anklagerupdate_rss')->info('RSS import done');
+}
+
+/**
+ * Fetch RSS feed for a publisher and store messages.
+ */
+function _anklagerupdate_rss_fetch_and_store($publisher_id, $publisher_name) {
+  $url = "https://via.ritzau.dk/rss/short-messages/latest?publisherId={$publisher_id}";
+  $client = \Drupal::httpClient();
+
+  \Drupal::logger('anklagerupdate_rss')->info('Fetching from publisher: @publisher', [
+    '@publisher' => $publisher_name,
+  ]);
+
+  // SSL verify is handled globally by WindowsSslClientFactory service decorator.
+  $options = ['timeout' => 30];
+
+  $response = $client->get($url, $options);
+  $xml_string = (string) $response->getBody();
+
+  // Parse XML.
+  $xml = simplexml_load_string($xml_string);
+  if (!$xml) {
+    throw new \Exception('Failed to parse XML');
+  }
+
+  $connection = \Drupal::database();
+  $now = time();
+  $new_count = 0;
+  $updated_count = 0;
+
+  // Check if feed has any items.
+  $item_count = isset($xml->channel->item) ? count($xml->channel->item) : 0;
+
+  if ($item_count === 0) {
+    \Drupal::logger('anklagerupdate_rss')->info('RSS feed for @publisher has no items yet', [
+      '@publisher' => $publisher_name,
+    ]);
+  }
+
+  // Process each item.
+  foreach ($xml->channel->item as $item) {
+    $guid = (string) $item->guid;
+    $title = (string) $item->title;
+    $description = (string) $item->description;
+    $link = (string) $item->link;
+    $pub_date = strtotime((string) $item->pubDate);
+    $category = (string) $item->category;
+
+    if (empty($guid) || empty($title)) {
+      // Skip invalid items.
+      continue;
+    }
+
+    // Check if message already exists.
+    $existing = $connection->select('anklagerupdate_messages', 'am')
+      ->fields('am', ['id'])
+      ->condition('guid', $guid)
+      ->execute()
+      ->fetchField();
+
+    if ($existing) {
+      // Update existing message.
+      $connection->update('anklagerupdate_messages')
+        ->fields([
+          'title' => $title,
+          'description' => $description,
+          'link' => $link,
+          'pub_date' => $pub_date,
+          'category' => $category,
+          'updated' => $now,
+        ])
+        ->condition('guid', $guid)
+        ->execute();
+
+      $updated_count++;
+    }
+    else {
+      // Insert new message.
+      $connection->insert('anklagerupdate_messages')
+        ->fields([
+          'guid' => $guid,
+          'publisher_id' => $publisher_id,
+          'publisher_name' => $publisher_name,
+          'title' => $title,
+          'description' => $description,
+          'link' => $link,
+          'pub_date' => $pub_date,
+          'category' => $category,
+          'created' => $now,
+          'updated' => $now,
+        ])
+        ->execute();
+
+      $new_count++;
+    }
+  }
+
+  return [
+    'new' => $new_count,
+    'updated' => $updated_count,
+  ];
+}
+

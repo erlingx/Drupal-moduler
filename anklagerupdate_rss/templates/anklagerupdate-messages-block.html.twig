@@ -1,0 +1,159 @@
+{#
+/**
+ * @file
+ * Template for AnklagerUpdate messages block.
+ *
+ * Available variables:
+ * - messages: Array of message objects
+ * - publishers: Array of publisher objects for filter
+ * - current_publisher: Currently selected publisher ID
+ * - pagination: Pagination info (page, total, has_next, has_prev)
+ */
+#}
+
+<div class="anklagerupdate-rss-feed">
+  <div class="anklagerupdate-messages">
+
+  {# Publisher filter dropdown #}
+  {% if publishers|length > 0 %}
+    <div class="anklagerupdate-filter mb-4">
+      <form method="get" action="">
+        <div class="form-group">
+          <label for="publisher-filter">Filtrer efter afsender:</label>
+          <select name="publisher_id" id="publisher-filter" class="form-select" onchange="this.form.submit()">
+            <option value="">Alle afsendere</option>
+            {% for publisher in publishers %}
+              <option value="{{ publisher.publisher_id }}" {% if current_publisher == publisher.publisher_id %}selected{% endif %}>
+                {{ publisher.publisher_name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+      </form>
+    </div>
+  {% endif %}
+
+  {# Messages list #}
+  {% if messages|length > 0 %}
+    <div class="anklagerupdate-messages-list">
+      {% for message in messages %}
+        <article class="anklagerupdate-message mb-4 p-3 border-start border-4 border-primary bg-light">
+          <div class="message-meta mb-2">
+            <small class="text-muted">
+              {{ message.pub_date|format_date('custom', 'd. F Y - H:i') }}
+              {% if message.publisher_name %}
+                | <strong>{{ message.publisher_name }}</strong>
+              {% endif %}
+              {% if message.category %}
+                | {{ message.category }}
+              {% endif %}
+            </small>
+          </div>
+
+          <h3 class="message-title h5 mb-2">
+            {% if message.link %}
+              <a href="{{ message.link }}" target="_blank" rel="noopener">
+                {{ message.title }}
+              </a>
+            {% else %}
+              {{ message.title }}
+            {% endif %}
+          </h3>
+
+          {% if message.description %}
+            <div class="message-description">
+              {{ message.description|striptags('<a><p><br><strong><em><ul><ol><li>')|raw }}
+            </div>
+          {% endif %}
+
+          {% if message.link %}
+            <div class="message-link mt-2">
+              <a href="{{ message.link }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
+                Læs mere →
+              </a>
+            </div>
+          {% endif %}
+        </article>
+      {% endfor %}
+    </div>
+
+    {# Pagination #}
+    {% if pagination.total_pages > 1 %}
+      <nav aria-label="Paginering" class="anklagerupdate-pagination mt-4">
+        <ul class="pagination justify-content-center">
+          {# First page #}
+          {% if pagination.has_prev %}
+            <li class="page-item">
+              <a class="page-link" href="?page=1{% if current_publisher %}&publisher_id={{ current_publisher }}{% endif %}">
+                Første
+              </a>
+            </li>
+          {% endif %}
+
+          {# Previous page #}
+          {% if pagination.has_prev %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ pagination.page - 1 }}{% if current_publisher %}&publisher_id={{ current_publisher }}{% endif %}">
+                ‹ Forrige
+              </a>
+            </li>
+          {% endif %}
+
+          {# Page numbers #}
+          {% set start_page = max(1, pagination.page - 2) %}
+          {% set end_page = min(pagination.total_pages, pagination.page + 2) %}
+
+          {% for i in start_page..end_page %}
+            <li class="page-item {% if i == pagination.page %}active{% endif %}">
+              <a class="page-link" href="?page={{ i }}{% if current_publisher %}&publisher_id={{ current_publisher }}{% endif %}">
+                {{ i }}
+              </a>
+            </li>
+          {% endfor %}
+
+          {# Next page #}
+          {% if pagination.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ pagination.page + 1 }}{% if current_publisher %}&publisher_id={{ current_publisher }}{% endif %}">
+                Næste ›
+              </a>
+            </li>
+          {% endif %}
+
+          {# Last page #}
+          {% if pagination.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ pagination.total_pages }}{% if current_publisher %}&publisher_id={{ current_publisher }}{% endif %}">
+                Sidste
+              </a>
+            </li>
+          {% endif %}
+        </ul>
+
+        <div class="text-center mt-2">
+          <small class="text-muted">
+            Side {{ pagination.page }} af {{ pagination.total_pages }} ({{ pagination.total }} meddelelser i alt)
+          </small>
+        </div>
+      </nav>
+    {% endif %}
+
+  {% else %}
+    {# No messages yet #}
+    <div class="alert alert-info">
+      <h4>Ingen meddelelser endnu</h4>
+      <p>
+        AnklagerUpdate meddelelser vil vises her, så snart de bliver publiceret af Ritzau.
+        Systemet opdateres automatisk hver time.
+      </p>
+      {% if current_publisher %}
+        <p>
+          <a href="?" class="btn btn-sm btn-primary">Vis alle afsendere</a>
+        </p>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  </div> {# /.anklagerupdate-messages #}
+</div> {# /.anklagerupdate-rss-feed #}
+

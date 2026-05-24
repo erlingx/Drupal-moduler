@@ -1,0 +1,54 @@
+# Behat configuration — erik_lab / drupal10 project.
+#
+# Based on the official drupal/drupal-extension template (behat.dist.yml).
+# See: vendor/drupal/drupal-extension/behat.dist.yml
+#
+# Run inside DDEV container:
+#   ddev exec vendor/bin/behat                        # run all scenarios
+#   ddev exec vendor/bin/behat --dry-run              # validate without hitting the site
+#   ddev exec vendor/bin/behat --format=pretty        # readable output
+#   ddev exec vendor/bin/behat tests/features/erik_lab # run one folder
+#   ddev exec vendor/bin/behat -di                    # list all available step definitions
+default:
+  # Load custom step definitions from tests/bootstrap/.
+  # Array syntax is required — map syntax does NOT work.
+  autoload:
+    - '%paths.base%/tests/bootstrap'
+  suites:
+    erik_lab:
+      paths:
+        - '%paths.base%/tests/features/erik_lab'
+      contexts:
+        - FeatureContext  # extends DrupalContext — inherits all Drupal steps
+        - Drupal\DrupalExtension\Context\MinkContext
+        - Drupal\DrupalExtension\Context\MessageContext
+        - Drupal\DrupalExtension\Context\MarkupContext
+  extensions:
+    # MinkExtension — registered via Drupal\ namespace by drupal-extension.
+    Drupal\MinkExtension:
+      # browserkit_http: Symfony HttpBrowser+HttpClient. Works on PHP 8.3+.
+      # No extra packages needed. Does NOT support JavaScript.
+      browserkit_http: ~
+      base_url: https://drupal10.ddev.site
+    Drupal\DrupalExtension:
+      # blackbox: default HTTP-only mode for steps that don't need @api.
+      blackbox: ~
+      # api_driver: drupal — bootstraps Drupal inside Behat so @api scenarios
+      # can create/delete users, nodes etc. via the Entity API.
+      api_driver: drupal
+      drupal:
+        # Absolute path to Drupal root INSIDE the container.
+        drupal_root: /var/www/html
+      selectors:
+        message_selector: '.messages'
+        error_message_selector: '.messages--error'
+        success_message_selector: '.messages--status'
+        warning_message_selector: '.messages--warning'
+      # Text strings that match Drupal's default UI labels.
+      text:
+        login_url: /user/login
+        logout_url: /user/logout
+        log_in: 'Log in'
+        log_out: 'Log out'
+        username_field: 'Username'
+        password_field: 'Password'

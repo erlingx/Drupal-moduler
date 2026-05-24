@@ -1,0 +1,31 @@
+{#
+  lab-card.html.twig
+  ------------------
+  Registered in hook_theme() → erik_lab_theme() in erik_lab.module.
+  Rendered via:
+    $build = ['#theme' => 'lab_card', '#title' => 'Test', '#body' => 'Hello'];
+
+  Twig concepts demonstrated:
+    |t         → translates a string
+    |raw       → output without escaping (use only on trusted markup)
+    |without   → render array minus specific keys
+    class(...)  → conditional CSS classes (Twig 2 / Drupal Twig extension)
+#}
+
+<div class="lab-card {{ extra_class ? extra_class|clean_class }}">
+  {% if title %}
+    <h2 class="lab-card__title">{{ title|t }}</h2>
+  {% endif %}
+
+  {% if body %}
+    {#
+      body is assumed safe markup here — in real templates use |render on
+      render arrays or |raw only when you control the source.
+    #}
+    <div class="lab-card__body">{{ body }}</div>
+  {% endif %}
+
+  {# Drupal utility: dump() for debugging — requires twig.config debug: true #}
+  {# {{ dump(extra_class) }} #}
+</div>
+

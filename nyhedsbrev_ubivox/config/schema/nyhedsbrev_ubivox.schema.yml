@@ -1,0 +1,26 @@
+nyhedsbrev_ubivox.settings:
+  type: config_object
+  label: 'Nyhedsbrev Ubivox settings'
+  mapping:
+    ubivox_username:
+      type: string
+      label: 'Ubivox username'
+    ubivox_password:
+      type: string
+      label: 'Ubivox password'
+    ubivox_url:
+      type: string
+      label: 'Ubivox XMLRPC URL'
+    list_id_landsdaekkende_nyheder:
+      type: integer
+      label: 'List ID: Landsdækkende nyheder (PRD)'
+    list_id_test_landsdaekkende_nyheder:
+      type: integer
+      label: 'List ID: Landsdækkende nyheder (TEST)'
+    list_id_aarsrapporter:
+      type: integer
+      label: 'List ID: Årsrapporter, bekendtgørelser og publikationer (PRD)'
+    list_id_test_aarsrapporter:
+      type: integer
+      label: 'List ID: Årsrapporter, bekendtgørelser og publikationer (TEST)'
+

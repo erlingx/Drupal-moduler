@@ -1,0 +1,558 @@
+<?php
+
+/**
+ * @file
+ * Contains nyhedsbrev_ubivox.module.
+ */
+
+use Drupal\Core\Entity\EntityInterface;
+
+/**
+ * Implements hook_page_attachments().
+ */
+function nyhedsbrev_ubivox_page_attachments(array &$attachments) {
+  $is_admin = \Drupal::service('router.admin_context')->isAdminRoute();
+  if ($is_admin) {
+    $attachments['#attached']['library'][] = 'nyhedsbrev_ubivox/nyhedsbrev_ubivox';
+    return;
+  }
+
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function nyhedsbrev_ubivox_form_alter(&$form, $form_state, $form_id) {
+
+  if ($form_id == 'node_forsite_article_edit_form') {
+
+    $node = \Drupal::routeMatch()->getParameter('node');
+    $nid = $node ? $node->id() : NULL;
+
+    $db = \Drupal::database();
+    $result = $db->select('newsletters_sent', 'ns')
+      ->fields('ns', ['sent'])
+      ->condition('nid', $nid)
+      ->execute();
+    $record = $result->fetchAssoc();
+    if (isset($record['sent']) &&  $record['sent'] ==1) {
+      $form['popup_notification'] = [
+        '#markup' => '<div id="overlay"></div><div id="modal-notification-sendmail" class="modal fade" role="dialog">
+								  <div class="modal-dialog">
+								    <div class="modal-content">
+								      <div class="modal-body">
+								        <p>Nyhedsbrevet er allerede sent.</p>
+								      </div>
+								      <div class="modal-footer">
+								        <div class="button button--primary btn-close" data-dismiss="modal">OK</div>
+								      </div>
+								    </div>
+
+								  </div>
+								</div>',
+        '#weight' => 100,
+      ];
+    }
+    else {
+      $form['popup_notification'] = [
+        '#markup' => '<div id="overlay"></div>
+							  <div id="modal-notification-sendmail" class="modal fade" role="dialog">
+								  <div class="modal-dialog">
+								    <div class="modal-content">
+								      <div class="modal-body">
+								        <p>Er du sikker på at du vil sende nyhedsbrevet?</p>
+								         </div>
+								      <div class="modal-footer">
+								        <div class="button button--primary btn-yes" data-dismiss="modal">Ja</div>
+								         <div class="button btn-no" data-dismiss="modal">Nej</div>
+								      </div>
+								    </div>
+
+								  </div>
+								</div>',
+        '#weight' => 100,
+      ];
+    }
+  }
+
+
+  if ($form_id == 'node_forsite_article_form') {
+    $form['popup_notification'] = [
+      '#markup' => '<div id="overlay"></div><div id="modal-notification-sendmail" class="modal fade" role="dialog">
+								  <div class="modal-dialog">
+								    <div class="modal-content">
+								      <div class="modal-body">
+								        <p>Er du sikker på at du vil sende nyhedsbrevet?</p>
+								        </div>
+								      <div class="modal-footer">
+								        <div class="button button--primary btn-yes" data-dismiss="modal">Ja</div>
+								         <div class="button btn-no" data-dismiss="modal">Nej</div>
+								      </div>
+								    </div>
+
+								  </div>
+								</div>',
+      '#weight' => 100,
+    ];
+  }
+  // sæt altid tjekbox 'Vil du sende Nyhedsbrev?' til unchecked
+  if ($form_id == 'node_page_edit_form' || $form_id == 'node_organization_edit_form' || $form_id == 'node_forsite_article_edit_form' || $form_id == 'node_mellemforsider_edit_form') {
+    $form['path']['widget'][0]['pathauto']['#default_value'] = 0;
+    $form['path']['widget'][0]['pathauto']['#disabled'] = TRUE;
+    $form['path']['widget'][0]['pathauto']['#attributes'] = ['style' => 'display: none!important;'];
+    $form['path']['widget'][0]['pathauto']['#description'] = '';
+    $form['path']['widget'][0]['pathauto']['#title'] = '';
+  }
+}
+
+/**
+ * Implements hook_mail().
+ */
+
+/**
+ * Implements hook_node_presave().
+ */
+function nyhedsbrev_ubivox_node_presave(EntityInterface $node) {
+  $now = date("Y-m-d H:i:s");
+  $nid = $node->id();
+
+  if($nid=='') {
+    \Drupal::logger('nyhedsbrev_ubivox')
+      ->info('Node presave nid eksisterer ikke. nid: %nid',
+        [
+          '%nid' => $nid,
+        ]);
+    return;
+  }
+  // eksisterende node
+
+
+
+  // Ubivox lister
+    // ID findes ved mouseover i topmenu 'Andre lister'
+  $ubivox_config = \Drupal::config('nyhedsbrev_ubivox.settings');
+  $list_id_landsdaekkende_nyheder = (int) $ubivox_config->get('list_id_landsdaekkende_nyheder');
+  $list_id_TEST_landsdaekkende_nyheder = (int) $ubivox_config->get('list_id_test_landsdaekkende_nyheder');
+
+  //$list_id_nyheder_soeik = 48995;
+  // $list_id_TEST_nyheder_soeik = 64326;
+
+  $list_id_aarsrapporter_bekendtgoerelser_publikationer = (int) $ubivox_config->get('list_id_aarsrapporter');
+  $list_id_TEST_aarsrapporter_bekendtgoerelser_publikationer = (int) $ubivox_config->get('list_id_test_aarsrapporter');
+
+  $client = new \UbivoxAPI(
+    $ubivox_config->get('ubivox_username'),
+    $ubivox_config->get('ubivox_password'),
+    $ubivox_config->get('ubivox_url')
+  );
+
+  if ($node->bundle() == 'forsite_article') {
+    // Send kun nodes oprettet efter Erik's system pr. 20.02.2019 (nid > 848).
+    if ($nid <= 848) {
+      \Drupal::messenger()->addMessage("Nyhedsbrevet er forældet og blev ikke sendt.");
+      \Drupal::logger('nyhedsbrev_ubivox')
+        ->info('Nyhedsbrevet er forældet og blev ikke sendt. nid: %nid',
+          [
+            '%nid' => $nid,
+          ]);
+      return;
+    }
+
+
+    if ($node->isPublished() && !$node->isNew()) {
+      // Nye nodes ordnes i nyhedsbrev_ubivox_node_insert.
+
+      $db = \Drupal::database();
+      $result = $db->select('newsletters_sent', 'ns')
+        ->fields('ns', ['sent'])
+        ->condition('nid', $nid)
+        ->execute();
+      $record = $result->fetchAssoc();
+      if ($record['sent'] !=1) {
+        // valgte lister der skal sendes til
+        $ubivox_lists = $node->get("field_send_mail_to_subscription_");
+
+        if (isset($ubivox_lists) && count($ubivox_lists)==0) {
+          \Drupal::messenger()->addMessage("Der blev ikke valgt en liste at sende til.");
+          \Drupal::logger('nyhedsbrev_ubivox')
+            ->info('Der blev ikke valgt en liste at sende til. nid: %nid',
+              [
+                '%nid' => $nid,
+              ]);
+          return;
+        }
+        if (isset($ubivox_lists) && !empty($ubivox_lists)) {
+          if($node->field_dont_send_email_subscriber->value!=1) {
+            \Drupal::logger('nyhedsbrev_ubivox')->info('Nyhedsbrev ikke checked til afsendelse i nyhedsbrev_ubivox_node_presave. nid: %nid',
+              [
+                '%nid' => $nid,
+              ]);
+
+            \Drupal::messenger()->addMessage("Nyhedsbrevet var ikke afkrydset til afsendelse.");
+            return;
+          }
+
+          foreach ($ubivox_lists as $key => $value) {
+            if (isset($ubivox_lists[$key]->value) && $ubivox_lists[$key]->value != "") {
+
+              if ($_SERVER['HTTP_HOST'] == "anklagemyndigheden.dk") {
+                // PRD
+                switch ($ubivox_lists[$key]->value) {
+                  case 'Landsdækkende nyheder fra anklagemyndigheden':
+                    $list_id = $list_id_landsdaekkende_nyheder;
+                    break;
+                    /*
+                  case 'Nyheder fra SØIK':
+                    $list_id = $list_id_nyheder_soeik;
+                    break;
+                    */
+                  case 'Årsrapporter, bekendtgørelser og publikationer':
+                    $list_id = $list_id_aarsrapporter_bekendtgoerelser_publikationer;
+                    break;
+                }
+              }
+              else {
+                // TEST og localhost
+                switch ($ubivox_lists[$key]->value) {
+                  case 'Landsdækkende nyheder fra anklagemyndigheden':
+                    $list_id = $list_id_TEST_landsdaekkende_nyheder;
+                    break;
+                    /*
+                  case 'Nyheder fra SØIK':
+                    $list_id = $list_id_TEST_nyheder_soeik;
+                    break;
+                    */
+                  case 'Årsrapporter, bekendtgørelser og publikationer':
+                    $list_id = $list_id_TEST_aarsrapporter_bekendtgoerelser_publikationer;
+                    break;
+                }
+              }
+
+              $title = $ubivox_lists[$key]->value;
+              $host = \Drupal::request()->getHost();
+              $path_url = 'https://' . $host . '/da/node/' . $nid;
+
+
+              $ubivox_html = "<h2 style='margin:20px 0;font-family: Georgia, serif;font-size:1.4em;letter-spacing:-0.5px;'>NYHED FRA ANKLAGEMYNDIGHEDEN</h2>
+                    <p>Kære {{ subscription.data['Navn']|default('læser') }}</p>
+                    <p style='margin-top: 20px;'>Der er nyt til dig fra dit abonnement på <i>" . $title . "</i>.</p>
+                    <a style='display: block; margin: 20px 0;' href='" . $path_url . "'>" . $node->label() . "</a></p>
+                    <p style='margin: 0;'>Med venlig hilsen</p>
+                    <p style='margin: 0;'>Anklagemyndigheden</p>
+                    <p style='font-style: italic; float:left;margin-right:10px;margin-top:20px'>Ønsker du at framelde dit abonnement? <a style='font-style: italic;' href='https://anklagemyndigheden.dk/da/frameld-nyheder'>Frameld abonnement her</a></p>
+                    <p></p>
+                    ";
+              $ubivox_text = "NYHED FRA ANKLAGEMYNDIGHEDEN\n\nKære {{subscription.data['Navn']|default('læser')}}\nDer er nyt til dig fra dit abonnement på " . $title . ".\n\n" . $node->label() . "\n" . $path_url . "\n\nMed venlig hilsen\nAnklagemyndigheden\nwebmaster@ankl.dk\n\nFrameld abonnement her:\nhttps://anklagemyndigheden.dk/da/frameld-nyheder";
+              \Drupal::logger('nyhedsbrev_ubivox')
+                ->info('HTML Nyhedsbrev oprettelse ListID: @list_id Title: @title', [
+                  '@list_id' => $list_id,
+                  '@title' => $title,
+                ]);
+              \Drupal::logger('nyhedsbrev_ubivox')
+                ->info('TEXT Nyhedsbrev oprettelse ListID: @list_id Title: @title', [
+                  '@list_id' => $list_id,
+                  '@title' => $title,
+                ]);
+              try {
+                // Create a new delivery on list ID.
+                $delivery_id = $client->call("ubivox.create_delivery", [
+                  'Nyhed: '.$node->label(),
+                  $ubivox_html,
+                  $ubivox_text,
+                  $list_id,
+                ]);
+
+              } catch (\UbivoxAPIError $e) {
+                \Drupal::messenger()->addMessage("Error creating delivery: " . $e->getMessage(), 'error');
+                \Drupal::logger('nyhedsbrev_ubivox')
+                  ->error('Error Nyhedsbrev oprettelse: @title | @code @message', [
+                    '@title' => $title,
+                    '@code' => $e->getCode(),
+                    '@message' => $e->getMessage(),
+                  ]);
+              }
+
+              // send 1-3 nyhedsbreve
+              if (isset($delivery_id) && $delivery_id) {
+                try {
+                  $client->call("ubivox.send_delivery", [$delivery_id, $now]);
+
+                } catch (\UbivoxAPIError $e) {
+                  \Drupal::messenger()->addMessage("Error sending delivery: " . $e->getMessage(), 'error');
+                  \Drupal::logger('nyhedsbrev_ubivox')
+                    ->error('Error Nyhedsbrev udsendelse: @code @message', [
+                      '@code' => $e->getCode(),
+                      '@message' => $e->getMessage(),
+                    ]);
+                }
+
+                \Drupal::logger('nyhedsbrev_ubivox')
+                  ->info('Sendte nyhedsbrev: %nyhedsbrev til listen: %list.',
+                    [
+                      '%nyhedsbrev' => $node->label(),
+                      '%list' => $title,
+                    ]);
+                \Drupal::messenger()->addMessage(t('Nyhedsbrev blev sendt'), 'status');
+              }
+              else {
+                \Drupal::messenger()->addMessage('Nyhedsbrevet blev ikke sendt.', 'error');
+                \Drupal::logger('nyhedsbrev_ubivox')
+                  ->error('Nyhedsbrevet blev ikke sendt på nid: %nid',
+                    [
+                      '%nid' => $nid,
+                    ]);
+
+              }
+            }
+          }
+          // Sæt altid nyhedbsrev(e) som sendt. Så bliver admin kontaktet hvis noget går galt. Og det kan ikke sendes to gange.
+          \Drupal::database()->insert('newsletters_sent')
+            ->fields([
+              'sent' => 1,
+              'nid' => $nid,
+              'oprettet' => $now,
+            ])
+            ->execute();
+        }
+      }
+      else {
+        \Drupal::messenger()->addMessage("Nyhedsbrevet var allerede sendt, og blev ikke sendt igen.");
+        \Drupal::logger('nyhedsbrev_ubivox')
+          ->info('Nyhedsbrevet var allerede sendt, og blev ikke sendt igen. nid: %nid',
+            [
+              '%nid' => $nid,
+            ]);
+
+      }
+    }
+  }
+
+}
+
+/**
+ * Implements hook_node_insert().
+ */
+function nyhedsbrev_ubivox_node_insert(EntityInterface $node) {
+  $now = date("Y-m-d H:i:s");
+  $nid = $node->id();
+  // Nye nodes.
+
+
+  // Ubivox lister
+  $ubivox_config = \Drupal::config('nyhedsbrev_ubivox.settings');
+  $list_id_landsdaekkende_nyheder = (int) $ubivox_config->get('list_id_landsdaekkende_nyheder');
+  $list_id_TEST_landsdaekkende_nyheder = (int) $ubivox_config->get('list_id_test_landsdaekkende_nyheder');
+
+ // $list_id_nyheder_soeik = 48995;
+ // $list_id_TEST_nyheder_soeik = 64326;
+
+  $list_id_aarsrapporter_bekendtgoerelser_publikationer = (int) $ubivox_config->get('list_id_aarsrapporter');
+  $list_id_TEST_aarsrapporter_bekendtgoerelser_publikationer = (int) $ubivox_config->get('list_id_test_aarsrapporter');
+
+  // Check kode på IVÆKST: sites/all/themes/ivaekst3/includes/php/ubivox.php
+  $client = new \UbivoxAPI(
+    $ubivox_config->get('ubivox_username'),
+    $ubivox_config->get('ubivox_password'),
+    $ubivox_config->get('ubivox_url')
+  );
+
+
+  \Drupal::logger('nyhedsbrev_ubivox')->info('New node insert nid: %nid',
+    [
+      '%nid' => $nid,
+    ]);
+
+  if ($node->bundle() == 'forsite_article') {
+    // publiceret og ikke sendt før
+    if ($node->isPublished()) {
+      // Send kun nodes oprettet efter Erik's system pr. 20.02.2019 (nid > 848).
+      if ($nid <= 848) {
+        \Drupal::messenger()->addMessage("Nyhedsbrevet er forældet og blev ikke sendt.");
+        \Drupal::logger('nyhedsbrev_ubivox')
+          ->info('Nyhedsbrevet er forældet og blev ikke sendt. nid: %nid',
+            [
+              '%nid' => $nid,
+            ]);
+
+        return;
+      }
+
+      $db = \Drupal::database();
+      $result = $db->select('newsletters_sent', 'ns')
+        ->fields('ns', ['sent'])
+        ->condition('nid', $nid)
+        ->execute();
+      $record = $result->fetchAssoc();
+      if ($record['sent'] !=1) {
+        // valgte lister der skal sendes til
+        $ubivox_lists = $node->get("field_send_mail_to_subscription_");
+        if (isset($ubivox_lists) && count($ubivox_lists)==0) {
+          \Drupal::messenger()->addMessage("Der blev ikke valgt en liste at sende til.");
+          \Drupal::logger('nyhedsbrev_ubivox')
+            ->info('Der blev ikke valgt en liste at sende til. nid: %nid',
+              [
+                '%nid' => $nid,
+              ]);
+          return;
+        }
+
+        $lister_values = [];
+        foreach ($ubivox_lists as $item) {
+          $lister_values[] = $item->value;
+        }
+        \Drupal::logger('nyhedsbrev_ubivox')
+          ->info('Nyhedsbrev sendes til lister: %lister',
+            [
+              '%lister' => implode(', ', $lister_values),
+            ]);
+        if (isset($ubivox_lists) && !empty($ubivox_lists)) {
+          if($node->field_dont_send_email_subscriber->value!=1) {
+            \Drupal::logger('nyhedsbrev_ubivox')->info('Nyhedsbrev ikke checked til afsendelse i nyhedsbrev_ubivox_node_insert. nid: %nid',
+              [
+                '%nid' => $nid,
+              ]);
+            \Drupal::messenger()->addMessage("Nyhedsbrevet var ikke afkrydset til afsendelse.");
+            return;
+          }
+
+          foreach ($ubivox_lists as $key => $value) {
+            if (isset($ubivox_lists[$key]->value) && $ubivox_lists[$key]->value != "") {
+
+              if ($_SERVER['HTTP_HOST'] == "anklagemyndigheden.dk") {
+                // PRD
+                switch ($ubivox_lists[$key]->value) {
+                  case 'Landsdækkende nyheder fra anklagemyndigheden':
+                    $list_id = $list_id_landsdaekkende_nyheder;
+                    break;
+                    /*
+                  case 'Nyheder fra SØIK':
+                    $list_id = $list_id_nyheder_soeik;
+                    break;
+                    */
+                  case 'Årsrapporter, bekendtgørelser og publikationer':
+                    $list_id = $list_id_aarsrapporter_bekendtgoerelser_publikationer;
+                    break;
+                }
+              }
+              else {
+                // TEST og localhost
+                switch ($ubivox_lists[$key]->value) {
+                  case 'Landsdækkende nyheder fra anklagemyndigheden':
+                    $list_id = $list_id_TEST_landsdaekkende_nyheder;
+                    break;
+                    /*
+                  case 'Nyheder fra SØIK':
+                    $list_id = $list_id_TEST_nyheder_soeik;
+                    break;
+                    */
+                  case 'Årsrapporter, bekendtgørelser og publikationer':
+                    $list_id = $list_id_TEST_aarsrapporter_bekendtgoerelser_publikationer;
+                    break;
+                }
+              }
+
+              $title = $ubivox_lists[$key]->value;
+              $host = \Drupal::request()->getHost();
+              $path_url = 'https://' . $host . '/da/node/' . $nid;
+
+              $ubivox_html = "<h2 style='margin:20px 0;font-family: Georgia, serif;font-size:1.4em;letter-spacing:-0.5px;'>NYHED FRA ANKLAGEMYNDIGHEDEN</h2>
+                    <p>Kære {{ subscription.data['Navn']|default('læser') }}</p>
+                    <p style='margin-top: 20px;'>Der er nyt til dig fra dit abonnement på <i>" . $title . "</i>.</p>
+                    <a style='display: block; margin: 20px 0;' href='" . $path_url . "'>" . $node->label() . "</a></p>
+                    <p style='margin: 0;'>Med venlig hilsen</p>
+                    <p style='margin: 0;'>Anklagemyndigheden</p>
+                    <p style='font-style: italic; float:left;margin-right:10px;margin-top:20px'>Ønsker du at framelde dit abonnement? <a style='font-style: italic;' href='https://anklagemyndigheden.dk/da/frameld-nyheder'>Frameld abonnement her</a></p>
+                    ";
+              $ubivox_text = "NYHED FRA ANKLAGEMYNDIGHEDEN\n\nKære {{subscription.data['Navn']|default('læser')}}\nDer er nyt til dig fra dit abonnement på " . $title . ".\n\n" . $node->label() . "\n" . $path_url . "\n\nMed venlig hilsen\nAnklagemyndigheden\nwebmaster@ankl.dk\n\nFrameld abonnement her:\nhttps://anklagemyndigheden.dk/da/frameld-nyheder";
+              \Drupal::logger('nyhedsbrev_ubivox')
+                ->info('Nyhedsbrev oprettelse html ListID: @list_id Title: @title', [
+                  '@list_id' => $list_id,
+                  '@title' => $title,
+                ]);
+              \Drupal::logger('nyhedsbrev_ubivox')
+                ->info('Nyhedsbrev oprettelse text ListID: @list_id Title: @title', [
+                  '@list_id' => $list_id,
+                  '@title' => $title,
+                ]);
+
+              try {
+                // Create a new delivery on list ID.
+                $delivery_id = $client->call("ubivox.create_delivery", [
+                  'Nyhed: '.$node->label(),
+                  $ubivox_html,
+                  $ubivox_text,
+                  $list_id,
+                ]);
+
+              } catch (\UbivoxAPIError $e) {
+                \Drupal::messenger()->addMessage("Error creating delivery: " . $e->getMessage(), 'error');
+                \Drupal::logger('nyhedsbrev_ubivox')
+                  ->error('Error Nyhedsbrev oprettelse: @title | @code @message', [
+                    '@title' => $title,
+                    '@code' => $e->getCode(),
+                    '@message' => $e->getMessage(),
+                  ]);
+              } catch (\UbivoxAPIException $e) {
+                \Drupal::messenger()->addMessage("Exception creating delivery: " . $e->getMessage(), 'error');
+                \Drupal::logger('nyhedsbrev_ubivox')
+                  ->error('Exception Nyhedsbrev oprettelse: @title | @code @message', [
+                    '@title' => $title,
+                    '@code' => $e->getCode(),
+                    '@message' => $e->getMessage(),
+                  ]);
+              }
+
+              // send 1-3 nyhedsbreve
+              if (isset($delivery_id) && $delivery_id) {
+                try {
+                  $client->call("ubivox.send_delivery", [$delivery_id, $now]);
+
+                } catch (\UbivoxAPIError $e) {
+                  \Drupal::messenger()->addMessage("Error sending delivery: " . $e->getMessage(), 'error');
+                  \Drupal::logger('nyhedsbrev_ubivox')
+                    ->error('Error Nyhedsbrev udsendelse: @code @message', [
+                      '@code' => $e->getCode(),
+                      '@message' => $e->getMessage(),
+                    ]);
+                }
+
+                \Drupal::logger('nyhedsbrev_ubivox')
+                  ->info('Sendte nyhedsbrev: %nyhedsbrev til listen: %list.',
+                    [
+                      '%nyhedsbrev' => $node->label(),
+                      '%list' => $title,
+                    ]);
+                \Drupal::messenger()->addMessage(t('Nyhedsbrev blev sendt'), 'status');
+              }
+              else {
+                \Drupal::messenger()->addMessage('Nyhedsbrevet blev ikke sendt.', 'error');
+                \Drupal::logger('nyhedsbrev_ubivox')
+                  ->error('Nyhedsbrevet blev ikke sendt på nid: %nid',
+                    [
+                      '%nid' => $nid,
+                    ]);
+              }
+            }
+          }
+          // Sæt altid nyhedbsrev(e) som sendt. Så bliver admin kontaktet hvis noget går galt. Og det kan ikke sendes to gange.
+          \Drupal::database()->insert('newsletters_sent')
+            ->fields([
+              'sent' => 1,
+              'nid' => $nid,
+              'oprettet' => $now,
+            ])
+            ->execute();
+        }
+      }
+      else {
+        \Drupal::messenger()->addMessage("Nyhedsbrevet var allerede sendt, og blev ikke sendt igen.");
+        \Drupal::logger('nyhedsbrev_ubivox')
+          ->info('Nyhedsbrevet var allerede sendt, og blev ikke sendt igen. nid: %nid',
+            [
+              '%nid' => $nid,
+            ]);
+      }
+    }
+  }
+
+}

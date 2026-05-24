@@ -1,0 +1,5 @@
+name: 'AnklagerUpdate RSS Importer'
+type: module
+description: 'Fetches and stores AnklagerUpdate RSS messages in database'
+core_version_requirement: ^10
+

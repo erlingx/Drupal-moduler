@@ -1,0 +1,8 @@
+name: 'HR Vacancies'
+type: module
+description: 'Fetches and displays job vacancies from HR Manager'
+core_version_requirement: ^10
+package: 'Anklagemyndigheden'
+dependencies:
+  - drupal:block
+

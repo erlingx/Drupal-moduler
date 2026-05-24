@@ -1,0 +1,5 @@
+name: 'Erik Lab'
+type: module
+description: 'Personal Drupal 10 re-sharpen sandbox. Covers hooks, services/DI, routing, cache, entity API, queues.'
+core_version_requirement: ^10 || ^11
+package: Custom

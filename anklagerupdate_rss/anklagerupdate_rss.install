@@ -1,0 +1,91 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for AnklagerUpdate RSS module.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function anklagerupdate_rss_schema() {
+  $schema['anklagerupdate_messages'] = [
+    'description' => 'Stores AnklagerUpdate messages from RSS feeds',
+    'fields' => [
+      'id' => [
+        'type' => 'serial',
+        'not null' => TRUE,
+        'description' => 'Primary Key: Unique message ID',
+      ],
+      'guid' => [
+        'type' => 'varchar',
+        'length' => 512,
+        'not null' => TRUE,
+        'description' => 'RSS GUID (unique identifier)',
+      ],
+      'publisher_id' => [
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => TRUE,
+        'description' => 'Publisher ID (e.g., 13563078)',
+      ],
+      'publisher_name' => [
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'description' => 'Publisher name',
+      ],
+      'title' => [
+        'type' => 'varchar',
+        'length' => 512,
+        'not null' => TRUE,
+        'description' => 'Message title',
+      ],
+      'description' => [
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => FALSE,
+        'description' => 'Message description/body',
+      ],
+      'link' => [
+        'type' => 'varchar',
+        'length' => 512,
+        'not null' => FALSE,
+        'description' => 'Link to full message',
+      ],
+      'pub_date' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'description' => 'Publication date (Unix timestamp)',
+      ],
+      'category' => [
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+        'description' => 'Message category',
+      ],
+      'created' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'description' => 'When this record was created in our DB',
+      ],
+      'updated' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'description' => 'When this record was last updated',
+      ],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'guid' => ['guid'],
+    ],
+    'indexes' => [
+      'publisher_id' => ['publisher_id'],
+      'pub_date' => ['pub_date'],
+      'created' => ['created'],
+    ],
+  ];
+
+  return $schema;
+}
+

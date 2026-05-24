@@ -1,0 +1,49 @@
+# Routing for erik_lab.
+#
+# Pattern: route name → path → controller → access requirement.
+# Rebuild after editing: drush cr
+#
+# Try it:
+#   /erik-lab/nodes      → list published nodes via Entity API
+#   /erik-lab/cache-demo → render array with explicit cache metadata
+
+erik_lab.nodes:
+  path: '/erik-lab/nodes'
+  defaults:
+    _controller: '\Drupal\erik_lab\Controller\LabController::nodeList'
+    _title: 'Lab: Node List (Entity API)'
+  requirements:
+    # Any authenticated user — swap for a custom permission if needed.
+    _permission: 'access content'
+
+erik_lab.cache_demo:
+  path: '/erik-lab/cache-demo'
+  defaults:
+    _controller: '\Drupal\erik_lab\Controller\LabController::cacheDemo'
+    _title: 'Lab: Cache API demo'
+  requirements:
+    _permission: 'access content'
+
+# ParamConverter / entity upcasting example.
+# {node} matches the 'node' entity type — Drupal loads the Node object
+# automatically before the controller is called.  If the NID does not
+# exist Drupal returns 404 without any code in the controller.
+# Try: /erik-lab/node/1
+erik_lab.node_view:
+  path: '/erik-lab/node/{node}'
+  defaults:
+    _controller: '\Drupal\erik_lab\Controller\LabController::nodeView'
+    _title: 'Lab: Node view (ParamConverter)'
+  requirements:
+    _permission: 'access content'
+    # Restrict {node} to numeric values so /erik-lab/node/foo → 404
+    # instead of a type error.
+    node: '\d+'
+
+erik_lab.form_demo:
+  path: '/erik-lab/form'
+  defaults:
+    _form: '\Drupal\erik_lab\Form\LabForm'
+    _title: 'Lab: Config Form'
+  requirements:
+    _permission: 'administer site configuration'

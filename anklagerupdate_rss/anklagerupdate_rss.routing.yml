@@ -1,0 +1,16 @@
+anklagerupdate_rss.api:
+  path: '/api/anklagerupdate/messages'
+  defaults:
+    _controller: '\Drupal\anklagerupdate_rss\Controller\ApiController::getMessages'
+  methods: [GET]
+  requirements:
+    _permission: 'access content'
+
+anklagerupdate_rss.api_publishers:
+  path: '/api/anklagerupdate/publishers'
+  defaults:
+    _controller: '\Drupal\anklagerupdate_rss\Controller\ApiController::getPublishers'
+  methods: [GET]
+  requirements:
+    _permission: 'access content'
+

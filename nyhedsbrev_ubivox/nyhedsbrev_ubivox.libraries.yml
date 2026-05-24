@@ -1,0 +1,10 @@
+nyhedsbrev_ubivox:
+  version: 1.x
+  css:
+    theme:
+      css/nyhedsbrev_ubivox.css: {}
+  js: 
+    js/nyhedsbrev_ubivox.js: {}
+  dependencies:
+    - core/jquery
+

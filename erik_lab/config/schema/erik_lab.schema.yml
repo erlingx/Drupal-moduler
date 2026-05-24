@@ -1,0 +1,16 @@
+# Config schema for erik_lab.settings.
+# Required for Drupal to validate and type-cast config values.
+# Maps to config/install/erik_lab.settings.yml
+erik_lab.settings:
+  type: config_object
+  label: 'Erik Lab settings'
+  mapping:
+    greeting:
+      type: string
+      label: 'Greeting message'
+    enable_logging:
+      type: boolean
+      label: 'Enable verbose logging'
+    log_channel:
+      type: string
+      label: 'Log channel name'

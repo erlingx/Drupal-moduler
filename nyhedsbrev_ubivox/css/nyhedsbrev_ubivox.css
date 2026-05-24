@@ -1,0 +1,54 @@
+.node-forsite-article-edit-form input.form-time, .node-forsite-article-form input.form-time,
+.node-forsite-article-edit-form #edit-field-don-t-show-this-post-in-en-wrapper,.node-forsite-article-form #edit-field-don-t-show-this-post-in-en-wrapper,
+.node-forsite-article-edit-form .field--name-field-categories, .node-forsite-article-form .field--name-field-categories,
+.node-forsite-article-edit-form .field--name-field-page-parent, .node-forsite-article-form .field--name-field-page-parent{
+  display: none;
+}
+
+.field--name-body #body-values tbody .draggable:not(:first-child), .field--name-body #body-values tbody .draggable.odd td.field-multiple-drag,
+.field--name-body #edit-body-add-more,.field--name-body .tabledrag-toggle-weight-wrapper{
+    display: none;
+}
+
+#modal-notification-sendmail {
+    display: none;
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 1px 1px 8px 0px #898989;
+    text-align: center;
+    min-width: 250px;
+}
+
+.modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    z-index: 1050;
+    overflow: hidden;
+    outline: 0;
+    transform: translate(-50%, -50%);
+}
+
+#overlay {
+    position: fixed;
+    display: none;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 2;
+    cursor: pointer;
+}
+
+#modal-notification-sendmail .btn-no {
+    margin-right: 0;
+}
+
+.node-forsite-article-edit-form .field--name-field-dont-send-email-subscriber label,
+.node-forsite-article-form .field--name-field-dont-send-email-subscriber label {
+    font-weight: bold;
+}

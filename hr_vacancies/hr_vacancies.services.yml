@@ -1,0 +1,4 @@
+services:
+  hr_vacancies.fetcher:
+    class: Drupal\hr_vacancies\Service\VacancyFetcher
+    arguments: ['@http_client', '@logger.factory']

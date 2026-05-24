@@ -1,0 +1,12 @@
+hr_vacancies:
+  version: 1.8
+  css:
+    theme:
+      css/hr_vacancies.css: { weight: -100 }
+  js:
+    js/iframeResizer.min.js: { minified: true }
+    js/hr_vacancies.js: {}
+  dependencies:
+    - core/drupal
+    - core/jquery
+    - core/once

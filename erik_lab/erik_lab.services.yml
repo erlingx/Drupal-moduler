@@ -1,0 +1,16 @@
+# Services defined by erik_lab.
+#
+# Pattern: define service → inject via constructor (never static if avoidable).
+# Register here, then consume in a Controller or another Service.
+#
+# Rebuild after editing: drush cr
+
+services:
+
+  # Our custom service — a simple node lister.
+  erik_lab.node_lister:
+    class: Drupal\erik_lab\Service\NodeLister
+    # Inject Drupal's entityTypeManager and the logger factory.
+    arguments:
+      - '@entity_type.manager'
+      - '@logger.factory'

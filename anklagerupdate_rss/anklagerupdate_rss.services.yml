@@ -1,0 +1,6 @@
+services:
+  anklagerupdate_rss.http_client_factory:
+    class: Drupal\anklagerupdate_rss\Http\WindowsSslClientFactory
+    decorates: http_client_factory
+    arguments: ['@anklagerupdate_rss.http_client_factory.inner']
+

@@ -1,0 +1,22 @@
+<?php
+
+/**
+ * @file
+ * HR Vacancies module.
+ */
+
+/**
+ * Implements hook_theme().
+ */
+function hr_vacancies_theme($existing, $type, $theme, $path) {
+  return [
+    'hr_vacancies_block' => [
+      'variables' => [
+        'html' => '',
+      ],
+      'template' => 'hr-vacancies-block',
+    ],
+  ];
+}
+
+

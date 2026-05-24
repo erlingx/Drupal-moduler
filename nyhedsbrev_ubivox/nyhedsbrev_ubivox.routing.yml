@@ -1,0 +1,8 @@
+
+nyhedsbrev_ubivox.unsubscribe:
+  path: '/frameld-nyheder'
+  defaults:
+    _form: 'Drupal\nyhedsbrev_ubivox\Form\UnsubcribeForm'
+    _title: 'Unsubscribe news'
+  requirements:
+    _permission: 'access content'
